@@ -89,267 +89,302 @@ To just check for linting issues:
 
 npm run lint
 
-API Endpoints
 
-This document outlines the available API endpoints, their methods, authentication requirements, request bodies, and expected successful/error response structures.
-Authentication Endpoints
+# 📘 API Endpoints Documentation
 
-Endpoint
-	
+This document outlines the available API endpoints, including methods, authentication requirements, request/response structures, and common error responses.
 
-Method
-	
+---
 
-Description
-	
+## 🔐 Authentication Endpoints
 
-Auth Required
-	
+### **POST** `/api/auth/signup`
 
-Request Body (JSON)
-	
+Register a new user.
 
-Success Response (JSON)
-	
+* **Auth Required:** No
+* **Request Body:**
 
-Common Error Responses (Status Code & Body)
+  ```json
+  {
+    "username": "string",
+    "email": "string",
+    "password": "string"
+  }
+  ```
+* **Success Response:**
 
-/api/auth/signup
-	
+  ```json
+  {
+    "_id": "string",
+    "username": "string",
+    "email": "string",
+    "profilePicture": "string",
+    "token": "string"
+  }
+  ```
+* **Error Responses:**
 
-POST
-	
+  * `400 Bad Request`:
 
-Register a new user
-	
+    ```json
+    { "message": "Please enter all fields" }
+    { "message": "User already exists" }
+    ```
+  * `500 Server Error`
 
-No
-	
+---
 
-{ "username": "string", "email": "string", "password": "string" }
-	
+### **POST** `/api/auth/login`
 
-{"_id":"string","username":"string","email":"string","profilePicture":"string","token":"string"}
-	
-
-400 Bad Request: {"message":"Please enter all fields"}  400 Bad Request: {"message":"User already exists"}  500 Server Error
-
-/api/auth/login
-	
-
-POST
-	
-
-Authenticate user & get token
-	
-
-No
-	
-
-{ "email": "string", "password": "string" }
-	
-
-{"_id":"string","username":"string","email":"string","profilePicture":"string","token":"string"}
-	
-
-400 Bad Request: {"message":"Please enter all fields"}  401 Unauthorized: {"message":"Invalid credentials"}  500 Server Error
-
-/api/auth/profile
-	
-
-GET
-	
-
-Get authenticated user profile
-	
-
-Yes
-	
-
-None
-	
-
-{"_id":"string","username":"string","email":"string","profilePicture":"string","followers":["string"], "following":["string"]}
-	
-
-401 Unauthorized: {"message":"Not authorized, no token"}  401 Unauthorized: {"message":"Not authorized, token failed"}
-Post Endpoints
-
-Endpoint
-	
-
-Method
-	
-
-Description
-	
-
-Auth Required
-	
-
-Request Body (JSON)
-	
-
-Success Response (JSON)
-	
-
-Common Error Responses (Status Code & Body)
-
-/api/posts
-	
-
-POST
-	
-
-Create a new post
-	
-
-Yes
-	
-
-{ "content": "string", "image": "string" (optional) }
-	
-
-{"_id":"string","user":"string","content":"string","image":"string","likes":[],"comments":[],"createdAt":"date","updatedAt":"date"}
-	
-
-400 Bad Request: {"message":"Post content is required."}  401 Unauthorized  500 Server Error
-
-/api/posts
-	
-
-GET
-	
-
-Get all posts (global feed)
-	
-
-Yes
-	
-
-None
-	
-
-[ { "_id": "string", "user": {"_id":"string","username":"string","profilePicture":"string"}, "content": "string", "image": "string", "likes": ["string"], "comments": [ { "user": {"_id":"string","username":"string","profilePicture":"string"}, "text": "string", "createdAt": "date", "_id": "string" } ], "createdAt": "date", "updatedAt": "date" } ]
-	
-
-401 Unauthorized  500 Server Error
-
-/api/posts/feed
-	
-
-GET
-	
-
-Get personalized user feed
-	
-
-Yes
-	
-
-None
-	
-
-Same as GET /api/posts (array of populated post objects, but filtered by user's following list)
-	
-
-401 Unauthorized  404 Not Found: {"message":"User not found."}  500 Server Error
-
-/api/posts/:id
-	
-
-GET
-	
-
-Get a single post by ID
-	
-
-Yes
-	
-
-None
-	
-
-Single post object (same structure as array element in GET /api/posts response)
-	
-
-401 Unauthorized  404 Not Found: {"message":"Post not found."}  500 Server Error
-
-/api/posts/:id
-	
-
-DELETE
-	
-
-Delete a post
-	
-
-Yes
-	
-
-None
-	
-
-{"message":"Post removed."}
-	
-
-401 Unauthorized: {"message":"Not authorized to delete this post."}  404 Not Found: {"message":"Post not found."}  500 Server Error
-
-/api/posts/:id/like
-	
-
-PUT
-	
-
-Toggle like/unlike on a post
-	
-
-Yes
-	
-
-None
-	
-
-{"message":"Post liked."} or {"message":"Post unliked."} with the updated post object
-	
-
-401 Unauthorized  404 Not Found: {"message":"Post not found."}  500 Server Error
-
-/api/posts/:id/comment
-	
-
-POST
-	
-
-Add a comment to a post
-	
-
-Yes
-	
-
-{ "text": "string" }
-	
-
-{"user":{"_id":"string","username":"string","profilePicture":"string"},"text":"string","createdAt":"date","_id":"string"}
-	
-
-400 Bad Request: {"message":"Comment text is required."}  401 Unauthorized  404 Not Found: {"message":"Post not found."}  500 Server Error
-General Notes for Frontend:
-
-    Authentication Header: For all authenticated endpoints, include the header Authorization: Bearer <YOUR_JWT_TOKEN>.
-
-    Content-Type: For POST and PUT requests that send JSON data, always include the header Content-Type: application/json.
-
-    Error Handling: Always be prepared to handle different HTTP status codes (e.g., 400, 401, 404, 500) and display appropriate messages to the user based on the message field in the error response body.
-
-    IDs: All _id fields returned by MongoDB are strings.
-
-    Dates: createdAt and updatedAt fields are ISO 8601 formatted date strings. You can parse these into Date objects in JavaScript for display.
-
-    Populated Fields: Notice that user and comments.user fields are "populated" in GET requests for posts, meaning they include the username and profilePicture of the associated user, not just their ID. This is very helpful for display in the frontend.
-
-This reference should provide a clear guide for consuming your backend API!
-Project Structure
+Authenticate user and return JWT token.
+
+* **Auth Required:** No
+* **Request Body:**
+
+  ```json
+  {
+    "email": "string",
+    "password": "string"
+  }
+  ```
+* **Success Response:** *Same as signup response*
+* **Error Responses:**
+
+  * `400 Bad Request`: `{ "message": "Please enter all fields" }`
+  * `401 Unauthorized`: `{ "message": "Invalid credentials" }`
+  * `500 Server Error`
+
+---
+
+### **GET** `/api/auth/profile`
+
+Get the currently authenticated user's profile.
+
+* **Auth Required:** Yes
+* **Success Response:**
+
+  ```json
+  {
+    "_id": "string",
+    "username": "string",
+    "email": "string",
+    "profilePicture": "string",
+    "followers": ["string"],
+    "following": ["string"]
+  }
+  ```
+* **Error Responses:**
+
+  * `401 Unauthorized`:
+
+    ```json
+    { "message": "Not authorized, no token" }
+    { "message": "Not authorized, token failed" }
+    ```
+
+---
+
+## 📝 Post Endpoints
+
+### **POST** `/api/posts`
+
+Create a new post.
+
+* **Auth Required:** Yes
+* **Request Body:**
+
+  ```json
+  {
+    "content": "string",
+    "image": "string" // optional
+  }
+  ```
+* **Success Response:**
+
+  ```json
+  {
+    "_id": "string",
+    "user": "string",
+    "content": "string",
+    "image": "string",
+    "likes": [],
+    "comments": [],
+    "createdAt": "date",
+    "updatedAt": "date"
+  }
+  ```
+* **Error Responses:**
+
+  * `400 Bad Request`: `{ "message": "Post content is required." }`
+  * `401 Unauthorized`
+  * `500 Server Error`
+
+---
+
+### **GET** `/api/posts`
+
+Retrieve all posts (global feed).
+
+* **Auth Required:** Yes
+* **Success Response:**
+
+  ```json
+  [
+    {
+      "_id": "string",
+      "user": {
+        "_id": "string",
+        "username": "string",
+        "profilePicture": "string"
+      },
+      "content": "string",
+      "image": "string",
+      "likes": ["string"],
+      "comments": [
+        {
+          "user": {
+            "_id": "string",
+            "username": "string",
+            "profilePicture": "string"
+          },
+          "text": "string",
+          "createdAt": "date",
+          "_id": "string"
+        }
+      ],
+      "createdAt": "date",
+      "updatedAt": "date"
+    }
+  ]
+  ```
+* **Error Responses:**
+
+  * `401 Unauthorized`
+  * `500 Server Error`
+
+---
+
+### **GET** `/api/posts/feed`
+
+Retrieve personalized feed (only posts from followed users).
+
+* **Auth Required:** Yes
+* **Success Response:** *Same structure as `/api/posts`*
+* **Error Responses:**
+
+  * `401 Unauthorized`
+  * `404 Not Found`: `{ "message": "User not found." }`
+  * `500 Server Error`
+
+---
+
+### **GET** `/api/posts/:id`
+
+Get a single post by ID.
+
+* **Auth Required:** Yes
+* **Success Response:** *Same structure as a single post from `/api/posts`*
+* **Error Responses:**
+
+  * `401 Unauthorized`
+  * `404 Not Found`: `{ "message": "Post not found." }`
+  * `500 Server Error`
+
+---
+
+### **DELETE** `/api/posts/:id`
+
+Delete a post.
+
+* **Auth Required:** Yes
+* **Success Response:**
+
+  ```json
+  { "message": "Post removed." }
+  ```
+* **Error Responses:**
+
+  * `401 Unauthorized`: `{ "message": "Not authorized to delete this post." }`
+  * `404 Not Found`: `{ "message": "Post not found." }`
+  * `500 Server Error`
+
+---
+
+### **PUT** `/api/posts/:id/like`
+
+Toggle like/unlike on a post.
+
+* **Auth Required:** Yes
+* **Success Response:**
+
+  ```json
+  { "message": "Post liked." } // or "Post unliked."
+  ```
+* **Error Responses:**
+
+  * `401 Unauthorized`
+  * `404 Not Found`: `{ "message": "Post not found." }`
+  * `500 Server Error`
+
+---
+
+### **POST** `/api/posts/:id/comment`
+
+Add a comment to a post.
+
+* **Auth Required:** Yes
+* **Request Body:**
+
+  ```json
+  {
+    "text": "string"
+  }
+  ```
+* **Success Response:**
+
+  ```json
+  {
+    "user": {
+      "_id": "string",
+      "username": "string",
+      "profilePicture": "string"
+    },
+    "text": "string",
+    "createdAt": "date",
+    "_id": "string"
+  }
+  ```
+* **Error Responses:**
+
+  * `400 Bad Request`: `{ "message": "Comment text is required." }`
+  * `401 Unauthorized`
+  * `404 Not Found`: `{ "message": "Post not found." }`
+  * `500 Server Error`
+
+---
+
+## ⚙️ General Notes for Frontend Developers
+
+* **Authentication Header:**
+  Use `Authorization: Bearer <YOUR_JWT_TOKEN>` for all authenticated requests.
+
+* **Content-Type Header:**
+  For POST and PUT requests, set `Content-Type: application/json`.
+
+* **Error Handling:**
+  Handle HTTP statuses like `400`, `401`, `404`, and `500`. Check the `message` field in error responses.
+
+* **ID Fields:**
+  All `_id` values are strings (MongoDB ObjectIDs).
+
+* **Date Fields:**
+  `createdAt` and `updatedAt` use ISO 8601 strings. Parse them as `Date` objects in the frontend.
+
+* **Populated Fields:**
+  Fields like `user` and `comments.user` in post responses are populated with `username` and `profilePicture`.
+
+---
 
 Refer to the initial project structure provided in the chat.
 CI/CD (GitHub Actions)
