@@ -1,0 +1,30 @@
+# .github/workflows/ci.yml - GitHub Actions CI workflow
+name: Node.js CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4 # Checkout the repository code
+    - name: Use Node.js 20.x # Set up Node.js environment
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm' # Cache npm dependencies for faster builds
+
+    - name: Install dependencies # Install project dependencies
+      run: npm ci
+
+    - name: Run ESLint # Lint the code for style and errors
+      run: npm run lint
+
+    - name: Run tests # Execute unit tests
+      run: npm test
+

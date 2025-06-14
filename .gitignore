@@ -1,0 +1,26 @@
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Dependency directories
+node_modules/
+jspm_packages/
+
+# Production artifacts
+build/
+dist/
+.env
+
+# Misc
+.DS_Store
+*.iml
+.idea/
+.vscode/
+
+# Testing
+/coverage
+/.nyc_output
+/test-results.xml
+
