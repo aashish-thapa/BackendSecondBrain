@@ -1,4 +1,4 @@
-// .eslintrc.js - ESLint configuration
+// eslint.config.js - ESLint configuration
 import globals from 'globals';
 import js from '@eslint/js';
 
@@ -10,7 +10,6 @@ export default [
       sourceType: 'module', // Use ES module syntax
       globals: {
         ...globals.node, // Enable Node.js global variables
-        ...globals.jest, // Enable Jest global variables for tests
       },
     },
     rules: {

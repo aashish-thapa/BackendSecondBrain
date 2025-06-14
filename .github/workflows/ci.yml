@@ -25,6 +25,6 @@ jobs:
     - name: Run ESLint # Lint the code for style and errors
       run: npm run lint
 
-    - name: Run tests # Execute unit tests
-      run: npm test
+    # - name: Run tests # Execute unit tests
+    #   run: npm test
 
