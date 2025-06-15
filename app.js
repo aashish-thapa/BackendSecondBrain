@@ -5,8 +5,8 @@ import cors from 'cors';
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import postRoutes from './routes/postRoutes.js';
+import aiRoutes from './routes/aiRoutes.js';
 
-// Load environment variables
 dotenv.config();
 
 // Connect to MongoDB
@@ -21,7 +21,7 @@ app.use(express.json()); // Body parser for JSON requests
 // Routes
 app.use('/api/auth', authRoutes); // Authentication routes (signup, login)
 app.use('/api/posts', postRoutes); // Post-related routes (create, read, update, delete, like, comment)
-
+app.use('/api/ai', aiRoutes);
 // Basic route for testing server
 app.get('/', (req, res) => {
   res.send('API is running...');
