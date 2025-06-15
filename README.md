@@ -1,6 +1,6 @@
 Social Media Backend
 
-This is a comprehensive backend application for a social media platform, built with Node.js, Express, and MongoDB. It includes features like user authentication, post management, likes, comments, and a personalized user feed.
+This is a comprehensive backend application for a social media platform, built with Node.js, Express, and MongoDB (JUST FOR MVP). It includes features like user authentication, post management, likes, comments, and a personalized user feed.
 Features Included
 
     Express + ESM: Modern JavaScript modules support.
