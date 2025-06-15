@@ -1,395 +1,240 @@
-Social Media Backend
+# Social Media Backend
 
-This is a comprehensive backend application for a social media platform, built with Node.js, Express, and MongoDB (JUST FOR MVP). It includes features like user authentication, post management, likes, comments, and a personalized user feed.
-Features Included
+This is a comprehensive backend application for a social media platform, built with Node.js, Express, and MongoDB (FOR MVP ONLY). It includes robust features for user authentication, post management, social interactions, and advanced AI-driven content analysis and personalization.
 
-    Express + ESM: Modern JavaScript modules support.
+## Features Included
 
-    MongoDB with Mongoose models: Robust NoSQL database integration.
+* **Express + ESM**: Modern JavaScript modules support for clean, modular code.
+* **MongoDB with Mongoose Models**: Robust NoSQL database integration for flexible data storage.
+* **User Authentication**:
+    * Secure user signup and login using JWT (JSON Web Tokens).
+    * Password hashing with `bcryptjs` for security.
+    * Protected routes ensuring only authenticated users can access certain resources.
+* **Social Features**:
+    * **Post Management**: Create, retrieve (all, by ID), and delete posts.
+    * **Liking System**: Users can like and unlike posts.
+    * **Commenting System**: Users can add comments to posts.
+    * **User Following**: Basic structure for user-to-user following (though routes for follow/unfollow are not explicitly built out, the relationship is in the User model).
+* **Advanced AI Integration (Hybrid Hugging Face & Gemini)**:
+    * **Sentiment Analysis**: Utilizes a specialized Hugging Face model (`cardiffnlp/twitter-roberta-base-sentiment`) to determine the overall emotional tone of posts (Positive, Negative, Neutral, Mixed).
+    * **Emotion Detection**: Leverages another Hugging Face model (`j-hartmann/emotion-english-distilroberta-base`) to identify nuanced emotions like joy, anger, sadness, surprise, etc.
+    * **Toxicity & Hate Speech Detection**: Employs a Hugging Face model (`cardiffnlp/twitter-roberta-base-offensive`) to flag potentially offensive or harmful content, contributing to content moderation.
+    * **Topic Extraction**: Uses **Gemini AI** to extract 3-5 distinct, key topics/keywords from post content.
+    * **Content Summarization**: Utilizes **Gemini AI** to generate concise summaries (max 50 words) of posts.
+    * **Content Categorization**: **Gemini AI** classifies posts into one of several predefined categories (e.g., Technology, Sports, Entertainment, Personal Update), aiding organization and discovery.
+    * **AI analysis results are saved directly with each post** in the database, allowing for persistent insights.
+* **Personalized Content Feed**:
+    * Beyond a simple chronological feed or posts from followed users, the feed now **learns user interests** based on posts they `like`.
+    * When a user likes a post, its AI-generated categories and topics are aggregated into the user's `userPreferences`.
+    * Posts in the personalized feed (`/api/posts/feed`) are dynamically **ranked and prioritized** based on:
+        * Posts from followed users and the user's own posts (base priority).
+        * How well post categories and topics match the user's accumulated `likedCategories` and `likedTopics`.
+        * Recency of the post.
+        * (Optional) Penalties for toxic content to promote a healthier feed.
+* **Code Quality**:
+    * **Linting**: ESLint setup for consistent code style and quality.
+    * **Pre-commit hook**: Husky + `lint-staged` to automatically lint and fix code before committing, ensuring code quality standards are met.
+    * **GitHub Actions CI**: Automated linting on every branch push or pull request to maintain code integrity in the repository.
 
-    Authentication (signup, login): Secure user authentication using JWT (JSON Web Tokens) and bcrypt for password hashing.
+---
 
-    Social features:
+## Getting Started
 
-        Posts creation, retrieval, and deletion.
+### Prerequisites
 
-        User-specific feed (posts from followed users and own posts).
+Before you can run this backend, ensure you have the following installed:
 
-        Liking and unliking posts.
+* **Node.js**: Version 18 or higher is recommended.
+    * [Download Node.js](https://nodejs.org/en/download/)
+* **MongoDB**: A running instance (local or cloud-hosted via MongoDB Atlas).
+    * [Install MongoDB Community Edition](https://docs.mongodb.com/manual/installation/)
+    * [MongoDB Atlas (Cloud)](https://www.mongodb.com/cloud/atlas)
+* **npm** (Node Package Manager) or **Yarn**: Usually comes with Node.js.
+* **Hugging Face API Token**: Required for Sentiment, Emotion, and Toxicity analysis.
+    * [Get your Hugging Face API Token](https://huggingface.co/settings/tokens) (Ensure it has at least "Read" access).
+* **Gemini API Key**: Required for Topic Extraction, Summarization, and Categorization.
+    * [Get your Gemini API Key](https://aistudio.google.com/app/apikey)
 
-        Commenting on posts.
+### Installation
 
-    Linting: ESLint setup for consistent code style and quality.
+1.  **Clone the repository**:
+    ```bash
+    git clone https://github.com/aashish-thapa/BackendSecondBrain 
+    cd BackEndSecondBrain
+    ```
 
-    Pre-commit hook: Husky + lint-staged to auto-lint and fix code before committing.
-
-    GitHub Actions CI: Automated linting on every branch push or pull request.
-
-Getting Started
-Prerequisites
-
-    Node.js (v18 or higher recommended)
-
-    MongoDB (local or cloud instance)
-
-    npm (Node Package Manager) or Yarn
-
-Installation
-
-    Clone the repository:
-
-    git clone https://your-repo-link/backend.git
-    cd backend
-
-    Install dependencies:
-
+2.  **Install dependencies**:
+    ```bash
     npm install
     # Or if you use yarn: yarn install
+    ```
 
-    Set up environment variables:
-    Create a .env file in the root directory of the project and add the following:
+3.  **Set up environment variables**:
+    Create a file named `.env` in the **root directory** of your project (same level as `package.json` and `app.js`). Copy the content below into your `.env` file and replace the placeholder values with your actual keys and desired settings.
 
+    ```env
     NODE_ENV=development
     PORT=5000
-    MONGO_URI=mongodb://localhost:27017/social-media-db
-    JWT_SECRET=your_super_secret_jwt_key # Make this a strong, random string
-    JWT_EXPIRES_IN=1h
+    MONGO_URI=mongodb://localhost:27017/social-media-db # Example local MongoDB URI
+    JWT_SECRET=your_super_secret_jwt_key # IMPORTANT: Use a strong, random, unique string
+    JWT_EXPIRES_IN=1h # Example: Token expires in 1 hour. Can be '7d' for 7 days etc.
 
-        MONGO_URI: Your MongoDB connection string. If running locally, mongodb://localhost:27017/social-media-db is a common default.
+    # Hugging Face AI Models
+    HF_API_TOKEN=YOUR_HUGGING_FACE_API_TOKEN_HERE
+    HF_SENTIMENT_MODEL=cardiffnlp/twitter-roberta-base-sentiment
+    HF_EMOTION_MODEL=j-hartmann/emotion-english-distilroberta-base
+    HF_TOXICITY_MODEL=cardiffnlp/twitter-roberta-base-offensive
 
-        JWT_SECRET: A strong, random string used to sign your JWTs.
+    # Google Gemini AI Key
+    GEMINI_API_KEY=YOUR_GEMINI_API_KEY_HERE
+    ```
+    * **`MONGO_URI`**: Your MongoDB connection string. If using MongoDB Atlas, copy your connection string from there.
+    * **`JWT_SECRET`**: A secret key used to sign and verify JWTs. **Crucial for security; keep it secret!**
+    * **`JWT_EXPIRES_IN`**: Controls how long issued JWTs are valid.
+    * **Hugging Face Models**: These are the specific models hosted on Hugging Face's Inference API used for their respective tasks.
+    * **`GEMINI_API_KEY`**: Your API key for Google Gemini.
 
-        JWT_EXPIRES_IN: How long the JWT token will be valid (e.g., 1h for 1 hour, 7d for 7 days).
-
-    Husky Setup:
-    Husky should automatically set up the Git hooks upon npm install (due to the prepare script in package.json). If not, run:
-
+4.  **Husky Setup (for Git hooks)**:
+    Husky should automatically set up the Git hooks upon `npm install` (due to the `prepare` script in `package.json`). If not, you can manually run:
+    ```bash
     npx husky install
+    ```
 
-Running the Application
+---
 
-    Start the development server:
+## Running the Application
 
+* **Start the development server**:
+    ```bash
     npm run dev
+    ```
+    This command uses `nodemon` to start the server. It will automatically restart the server whenever you save changes to your `.js` files. The server will typically run on `http://localhost:5000`.
 
-    This will start the server using nodemon (with --watch for ESM) which automatically restarts on file changes.
-
-    Start the production server:
-
+* **Start the production server**:
+    ```bash
     npm start
-
-The API will be running on http://localhost:5000 (or your specified PORT).
-Linting
-
-To lint your code and automatically fix fixable issues:
-
-npm run lint:fix
-
-To just check for linting issues:
-
-npm run lint
-
-
-# 📘 API Endpoints Documentation
-
-This document outlines the available API endpoints, including methods, authentication requirements, request/response structures, and common error responses.
-
----
-
-## 🔐 Authentication Endpoints
-
-### **POST** `/api/auth/signup`
-
-Register a new user.
-
-* **Auth Required:** No
-* **Request Body:**
-
-  ```json
-  {
-    "username": "string",
-    "email": "string",
-    "password": "string"
-  }
-  ```
-* **Success Response:**
-
-  ```json
-  {
-    "_id": "string",
-    "username": "string",
-    "email": "string",
-    "profilePicture": "string",
-    "token": "string"
-  }
-  ```
-* **Error Responses:**
-
-  * `400 Bad Request`:
-
-    ```json
-    { "message": "Please enter all fields" }
-    { "message": "User already exists" }
     ```
-  * `500 Server Error`
+    This command starts the server for a production environment.
+
+The API will be running on the `PORT` specified in your `.env` file (default: `http://localhost:5000`).
 
 ---
 
-### **POST** `/api/auth/login`
+## Code Quality
 
-Authenticate user and return JWT token.
-
-* **Auth Required:** No
-* **Request Body:**
-
-  ```json
-  {
-    "email": "string",
-    "password": "string"
-  }
-  ```
-* **Success Response:** *Same as signup response*
-* **Error Responses:**
-
-  * `400 Bad Request`: `{ "message": "Please enter all fields" }`
-  * `401 Unauthorized`: `{ "message": "Invalid credentials" }`
-  * `500 Server Error`
-
----
-
-### **GET** `/api/auth/profile`
-
-Get the currently authenticated user's profile.
-
-* **Auth Required:** Yes
-* **Success Response:**
-
-  ```json
-  {
-    "_id": "string",
-    "username": "string",
-    "email": "string",
-    "profilePicture": "string",
-    "followers": ["string"],
-    "following": ["string"]
-  }
-  ```
-* **Error Responses:**
-
-  * `401 Unauthorized`:
-
-    ```json
-    { "message": "Not authorized, no token" }
-    { "message": "Not authorized, token failed" }
+* **Linting (ESLint)**:
+    To lint your code and automatically fix fixable issues according to the configured ESLint rules:
+    ```bash
+    npm run lint:fix
+    ```
+    To just check for linting issues without fixing them:
+    ```bash
+    npm run lint
     ```
 
 ---
 
-## 📝 Post Endpoints
+## API Endpoints Documentation
 
-### **POST** `/api/posts`
+This section provides detailed information on all available API endpoints, including their HTTP methods, authentication requirements, expected request bodies, and examples of successful and error responses.
 
-Create a new post.
+### Base URL
 
-* **Auth Required:** Yes
-* **Request Body:**
-
-  ```json
-  {
-    "content": "string",
-    "image": "string" // optional
-  }
-  ```
-* **Success Response:**
-
-  ```json
-  {
-    "_id": "string",
-    "user": "string",
-    "content": "string",
-    "image": "string",
-    "likes": [],
-    "comments": [],
-    "createdAt": "date",
-    "updatedAt": "date"
-  }
-  ```
-* **Error Responses:**
-
-  * `400 Bad Request`: `{ "message": "Post content is required." }`
-  * `401 Unauthorized`
-  * `500 Server Error`
+All endpoints are prefixed with the base URL for your API, e.g., `http://localhost:5000/api`.
 
 ---
 
-### **GET** `/api/posts`
+### **1. Authentication Endpoints (`/api/auth`)**
 
-Retrieve all posts (global feed).
-
-* **Auth Required:** Yes
-* **Success Response:**
-
-  ```json
-  [
-    {
-      "_id": "string",
-      "user": {
-        "_id": "string",
-        "username": "string",
-        "profilePicture": "string"
-      },
-      "content": "string",
-      "image": "string",
-      "likes": ["string"],
-      "comments": [
-        {
-          "user": {
-            "_id": "string",
-            "username": "string",
-            "profilePicture": "string"
-          },
-          "text": "string",
-          "createdAt": "date",
-          "_id": "string"
-        }
-      ],
-      "createdAt": "date",
-      "updatedAt": "date"
-    }
-  ]
-  ```
-* **Error Responses:**
-
-  * `401 Unauthorized`
-  * `500 Server Error`
+| Endpoint           | Method | Description                        | Auth Required | Request Body (JSON)                                        | Success Response (Status & Body)                                                                               | Common Error Responses (Status & Body)                                                              |
+| :----------------- | :----- | :--------------------------------- | :------------ | :--------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
+| `/api/auth/signup` | `POST` | Registers a new user.              | No            | ```json { "username": "string", "email": "string", "password": "string" } ``` | `201 Created` <br/> ```json { "_id": "string", "username": "string", "email": "string", "profilePicture": "string", "token": "string" } ``` | `400 Bad Request: {"message":"Please enter all fields."}` <br/> `400 Bad Request: {"message":"User already exists."}` <br/> `500 Server Error: {"message":"Server error."}` |
+| `/api/auth/login`  | `POST` | Authenticates a user and returns a JWT. | No            | ```json { "email": "string", "password": "string" } ```     | `200 OK` <br/> ```json { "_id": "string", "username": "string", "email": "string", "profilePicture": "string", "token": "string" } ``` | `400 Bad Request: {"message":"Please enter all fields."}` <br/> `401 Unauthorized: {"message":"Invalid credentials."}` <br/> `500 Server Error: {"message":"Server error."}` |
+| `/api/auth/profile`| `GET`  | Retrieves the authenticated user's profile details. | Yes           | None                                                       | `200 OK` <br/> ```json { "_id": "string", "username": "string", "email": "string", "profilePicture": "string", "followers": ["string"], "following": ["string"], "userPreferences": { "likedCategories": { "CategoryName": number }, "likedTopics": { "TopicName": number } } } ``` | `401 Unauthorized: {"message":"Not authorized, no token provided."}` <br/> `401 Unauthorized: {"message":"Not authorized, token failed."}` <br/> `404 Not Found: {"message":"User not found."}` |
 
 ---
 
-### **GET** `/api/posts/feed`
+### **2. Post Endpoints (`/api/posts`)**
 
-Retrieve personalized feed (only posts from followed users).
+All post-related endpoints require authentication unless specified.
 
-* **Auth Required:** Yes
-* **Success Response:** *Same structure as `/api/posts`*
-* **Error Responses:**
-
-  * `401 Unauthorized`
-  * `404 Not Found`: `{ "message": "User not found." }`
-  * `500 Server Error`
-
----
-
-### **GET** `/api/posts/:id`
-
-Get a single post by ID.
-
-* **Auth Required:** Yes
-* **Success Response:** *Same structure as a single post from `/api/posts`*
-* **Error Responses:**
-
-  * `401 Unauthorized`
-  * `404 Not Found`: `{ "message": "Post not found." }`
-  * `500 Server Error`
+| Endpoint                 | Method | Description                                | Auth Required | Request Body (JSON)                                        | Success Response (Status & Body)                                                                                                                                                                                                                                                                                                                                                                                    | Common Error Responses (Status & Body)                                                                      |
+| :----------------------- | :----- | :----------------------------------------- | :------------ | :--------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------------------------------------------- |
+| `/api/posts`             | `POST` | Creates a new post. `aiAnalysis` fields are initialized and will be populated after calling `/api/ai/analyze/:postId`. | Yes           | ```json { "content": "string", "image": "string" (optional) } ``` | `201 Created` <br/> ```json { "_id": "string", "user": "string", "content": "string", "image": "string", "likes": [], "comments": [], "aiAnalysis": { "sentiment": "Unknown", "emotions": [], "toxicity": { "detected": false, "details": {} }, "topics": [], "summary": "", "category": "Uncategorized" }, "createdAt": "date", "updatedAt": "date", "__v": 0 } ``` | `400 Bad Request: {"message":"Post content is required."}` <br/> `401 Unauthorized` <br/> `500 Server Error: {"message":"Server error."}` |
+| `/api/posts`             | `GET`  | Retrieves all posts chronologically (global feed). Populates user and comment user details. | Yes           | None                                                       | `200 OK` <br/> ```json [ { "_id": "string", "user": { "_id": "string", "username": "string", "profilePicture": "string" }, "content": "string", "image": "string", "likes": ["string"], "comments": [ { "user": { "_id": "string", "username": "string", "profilePicture": "string" }, "text": "string", "createdAt": "date", "_id": "string" } ], "aiAnalysis": { "sentiment": "string", "emotions": [{ "emotion": "string", "score": number }], "toxicity": { "detected": boolean, "details": { "offensive": number, "not offensive": number } }, "topics": ["string"], "summary": "string", "category": "string" }, "createdAt": "date", "updatedAt": "date", "__v": 0 }, ... ] ``` | `401 Unauthorized` <br/> `500 Server Error: {"message":"Server error."}` |
+| `/api/posts/feed`        | `GET`  | Retrieves a personalized feed for the authenticated user, ranked by `relevanceScore` based on liked content. | Yes           | None                                                       | `200 OK` <br/> ```json [ { "_id": "string", "user": { "_id": "string", "username": "string", "profilePicture": "string" }, "content": "string", "image": "string", "likes": ["string"], "comments": [ { "user": { "_id": "string", "username": "string", "profilePicture": "string" }, "text": "string", "createdAt": "date", "_id": "string" } ], "aiAnalysis": { ... }, "createdAt": "date", "updatedAt": "date", "__v": 0, "relevanceScore": number }, ... ] ``` | `401 Unauthorized` <br/> `404 Not Found: {"message":"User not found."}` <br/> `500 Server Error: {"message":"Server error."}` |
+| `/api/posts/:id`         | `GET`  | Retrieves a single post by its ID. Populates user and comment user details. | Yes           | None                                                       | `200 OK` <br/> (Single post object, same structure as an element in `GET /api/posts` response)             | `401 Unauthorized` <br/> `404 Not Found: {"message":"Post not found."}` <br/> `500 Server Error: {"message":"Server error."}` |
+| `/api/posts/:id`         | `DELETE` | Deletes a post by its ID. Only the post owner can delete it. | Yes           | None                                                       | `200 OK: {"message":"Post removed."}`                                                                        | `401 Unauthorized: {"message":"Not authorized to delete this post."}` <br/> `404 Not Found: {"message":"Post not found."}` <br/> `500 Server Error: {"message":"Server error."}` |
+| `/api/posts/:id/like`    | `PUT`  | Toggles a like/unlike on a post. Updates user's `likedCategories` and `likedTopics` preferences. | Yes           | None                                                       | `200 OK: {"message":"Post liked.","post":{...}}` or <br/> `{"message":"Post unliked.","post":{...}}` (returns updated post object) | `401 Unauthorized` <br/> `404 Not Found: {"message":"Post not found."}` <br/> `500 Server Error: {"message":"Server error."}` |
+| `/api/posts/:id/comment` | `POST` | Adds a comment to a post.          | Yes           | ```json { "text": "string" } ```                           | `201 Created` <br/> ```json { "user": { "_id": "string", "username": "string", "profilePicture": "string" }, "text": "string", "createdAt": "date", "_id": "string" } ``` | `400 Bad Request: {"message":"Comment text is required."}` <br/> `401 Unauthorized` <br/> `404 Not Found: {"message":"Post not found."}` <br/> `500 Server Error: {"message":"Server error."}` |
 
 ---
 
-### **DELETE** `/api/posts/:id`
+### **3. AI Endpoints (`/api/ai`)**
 
-Delete a post.
+This endpoint triggers the AI analysis for a specific post and saves the results to the post in the database.
 
-* **Auth Required:** Yes
-* **Success Response:**
-
-  ```json
-  { "message": "Post removed." }
-  ```
-* **Error Responses:**
-
-  * `401 Unauthorized`: `{ "message": "Not authorized to delete this post." }`
-  * `404 Not Found`: `{ "message": "Post not found." }`
-  * `500 Server Error`
+| Endpoint                   | Method | Description                                | Auth Required | Request Body (JSON) | Success Response (Status & Body)                                                                                                                                                                                                                                                                                                                                                                                                           | Common Error Responses (Status & Body)                                                                                                                  |
+| :------------------------- | :----- | :----------------------------------------- | :------------ | :------------------ | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/api/ai/analyze/:postId` | `POST` | Analyzes a post's content using AI (sentiment, emotions, toxicity, topics, summary, category) and saves the `aiAnalysis` data back to the post. | Yes           | None                | `200 OK` <br/> ```json { "postId": "string", "content": "string", "aiAnalysis": { "sentiment": "string", "emotions": [ { "emotion": "string", "score": number } ], "toxicity": { "detected": boolean, "details": { "offensive": number, "not offensive": number } }, "topics": ["string"], "summary": "string", "category": "string" }, "message": "Post analyzed successfully and analysis saved." } ``` | `401 Unauthorized` <br/> `404 Not Found: {"message":"Post not found."}` <br/> `500 Server Error: {"message":"AI service not configured: Hugging Face API token missing."}` <br/> `500 Server Error: {"message":"AI service not configured: Gemini API key missing."}` <br/> `500 Server Error: {"message":"Failed to get analysis from AI."}` <br/> `500 Server Error: {"message":"Unexpected AI response format."}` <br/> `500 Server Error: {"message":"Server error during overall AI analysis."}` |
 
 ---
 
-### **PUT** `/api/posts/:id/like`
+## General Notes for Frontend Developers
 
-Toggle like/unlike on a post.
-
-* **Auth Required:** Yes
-* **Success Response:**
-
-  ```json
-  { "message": "Post liked." } // or "Post unliked."
-  ```
-* **Error Responses:**
-
-  * `401 Unauthorized`
-  * `404 Not Found`: `{ "message": "Post not found." }`
-  * `500 Server Error`
-
----
-
-### **POST** `/api/posts/:id/comment`
-
-Add a comment to a post.
-
-* **Auth Required:** Yes
-* **Request Body:**
-
-  ```json
-  {
-    "text": "string"
-  }
-  ```
-* **Success Response:**
-
-  ```json
-  {
-    "user": {
-      "_id": "string",
-      "username": "string",
-      "profilePicture": "string"
-    },
-    "text": "string",
-    "createdAt": "date",
-    "_id": "string"
-  }
-  ```
-* **Error Responses:**
-
-  * `400 Bad Request`: `{ "message": "Comment text is required." }`
-  * `401 Unauthorized`
-  * `404 Not Found`: `{ "message": "Post not found." }`
-  * `500 Server Error`
+* **Authentication Header**: For all **authenticated endpoints**, you must include an `Authorization` header in your HTTP requests:
+    ```
+    Authorization: Bearer <YOUR_JWT_TOKEN>
+    ```
+    Replace `<YOUR_JWT_TOKEN>` with the actual token received from the `/api/auth/login` or `/api/auth/signup` endpoints.
+* **Content-Type**: For all `POST` and `PUT` requests that send JSON data in the request body, always include the header:
+    ```
+    Content-Type: application/json
+    ```
+* **Error Handling**: Always be prepared to handle various HTTP status codes (e.g., `400 Bad Request`, `401 Unauthorized`, `404 Not Found`, `500 Server Error`). The backend generally provides a `message` field in the JSON error response for display to the user.
+* **IDs**: All `_id` fields returned by MongoDB are strings (e.g., `654321abcdef1234567890`).
+* **Dates**: `createdAt` and `updatedAt` fields are ISO 8601 formatted date strings (e.g., `2025-06-15T01:31:40.716Z`). You can parse these into `Date` objects in JavaScript for display or formatting.
+* **Populated Fields**: Notice that in responses for posts and comments, the `user` field is often "populated." This means instead of just a user ID, you'll receive an object containing common user details like `_id`, `username`, and `profilePicture`. This saves you from making extra API calls to fetch user data.
+* **`aiAnalysis` Object**: This nested object on each post provides all the rich AI insights. Use these fields to enhance your UI (e.g., show sentiment icons, display detected topics, filter by category, highlight toxic content for moderators).
+* **`relevanceScore` (for `/api/posts/feed`)**: This numeric field helps you rank posts. Higher scores mean more relevant posts for the current user based on their preferences and network.
 
 ---
 
-## ⚙️ General Notes for Frontend Developers
+## Project Structure
 
-* **Authentication Header:**
-  Use `Authorization: Bearer <YOUR_JWT_TOKEN>` for all authenticated requests.
 
-* **Content-Type Header:**
-  For POST and PUT requests, set `Content-Type: application/json`.
+.
+├── .github/
+│   └── workflows/
+│       └── ci.yml             # GitHub Actions CI workflow for linting
+├── config/
+│   └── db.js                  # MongoDB connection setup
+├── controllers/
+│   ├── aiController.js        # Logic for AI analysis (Hugging Face & Gemini)
+│   ├── authController.js      # Logic for user authentication (signup, login, profile)
+│   └── postController.js      # Logic for post management (create, get, like, comment, feed)
+├── middlewares/
+│   └── auth.js                # JWT authentication middleware
+├── models/
+│   ├── Post.js                # Mongoose model for posts (includes AI analysis schema)
+│   └── User.js                # Mongoose model for users (includes user preferences)
+├── routes/
+│   ├── aiRoutes.js            # API routes for AI features
+│   ├── authRoutes.js          # API routes for authentication
+│   └── postRoutes.js          # API routes for posts
+├── .env.example               # Example environment variables
+├── .eslintrc.js               # ESLint configuration
+├── .gitignore                 # Files/directories to ignore in Git
+├── .prettierrc                # Prettier configuration for code formatting
+├── app.js                     # Main Express application entry point
+├── package.json               # Project dependencies and scripts
+└── README.md                  # Project documentation (this file)
 
-* **Error Handling:**
-  Handle HTTP statuses like `400`, `401`, `404`, and `500`. Check the `message` field in error responses.
-
-* **ID Fields:**
-  All `_id` values are strings (MongoDB ObjectIDs).
-
-* **Date Fields:**
-  `createdAt` and `updatedAt` use ISO 8601 strings. Parse them as `Date` objects in the frontend.
-
-* **Populated Fields:**
-  Fields like `user` and `comments.user` in post responses are populated with `username` and `profilePicture`.
 
 ---
 
-Refer to the initial project structure provided in the chat.
-CI/CD (GitHub Actions)
-
-The .github/workflows/ci.yml file configures a GitHub Actions workflow that automatically runs ESLint on every push to main or develop branches, and on every pull_request targeting these branches.
-Contribution
+## Contribution
 
 Feel free to fork this repository and contribute!
+
+
