@@ -12,7 +12,7 @@
     "prepare": "husky install"
   },
   "keywords": [],
-  "author": "Your Name",
+  "author": "Aashish Thapa",
   "license": "ISC",
   "dependencies": {
     "bcryptjs": "^2.4.3",
