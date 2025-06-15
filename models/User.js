@@ -1,62 +1,79 @@
 // models/User.js - Mongoose model for User
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs'; // Import bcrypt for password hashing
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
 
-const UserSchema = mongoose.Schema(
+const userSchema = mongoose.Schema(
   {
     username: {
       type: String,
-      required: [true, 'Please add a username'], // Username is required
-      unique: true, // Username must be unique
-      trim: true, // Trim whitespace from username
-      minlength: [3, 'Username must be at least 3 characters long'], // Minimum length
+      required: true,
+      unique: true,
     },
     email: {
       type: String,
-      required: [true, 'Please add an email'], // Email is required
-      unique: true, // Email must be unique
-      match: [
-        /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/,
-        'Please enter a valid email', // Regex for email validation
-      ],
+      required: true,
+      unique: true,
     },
     password: {
       type: String,
-      required: [true, 'Please add a password'], // Password is required
-      minlength: [6, 'Password must be at least 6 characters long'], // Minimum length
+      required: true,
     },
     profilePicture: {
       type: String,
-      default: 'https://placehold.co/150x150/cccccc/ffffff?text=Profile', // Default profile picture
+      default: 'https://placehold.co/150x150/cccccc/ffffff?text=Profile',
     },
-    followers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Array of user IDs who follow this user
-    following: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }], // Array of user IDs this user follows
+    followers: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    following: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
+    userPreferences: { // NEW FIELD: Store user's aggregated preferences
+      likedCategories: {
+        type: Map, // Key: category name (string), Value: count (Number)
+        of: Number,
+        default: {},
+      },
+      likedTopics: {
+        type: Map, // Key: topic name (string), Value: count (Number)
+        of: Number,
+        default: {},
+      },
+    },
   },
   {
-    timestamps: true, // Add createdAt and updatedAt timestamps
+    timestamps: true,
   },
 );
 
-// Pre-save hook to hash the password before saving a new user or updating password
-UserSchema.pre('save', async function(next) {
-  // Only hash the password if it has been modified (or is new)
+// Encrypt password before saving
+userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
     next();
   }
-
-  // Generate a salt with 10 rounds
   const salt = await bcrypt.genSalt(10);
-  // Hash the password using the generated salt
   this.password = await bcrypt.hash(this.password, salt);
-  next();
 });
 
-// Method to compare entered password with hashed password
-UserSchema.methods.matchPassword = async function(enteredPassword) {
+// Compare password method
+userSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-const User = mongoose.model('User', UserSchema); // Create the User model
+// Generate JWT
+userSchema.methods.getSignedJwtToken = function() {
+  return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN,
+  });
+};
 
-export default User; // Export the User model
+const User = mongoose.model('User', userSchema);
 
+export default User;
