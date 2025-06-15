@@ -3,26 +3,50 @@ import Post from '../models/Post.js';
 
 dotenv.config();
 
-// Hugging Face Configuration for Sentiment Analysis
 const HF_API_TOKEN = process.env.HF_API_TOKEN;
-const HF_SENTIMENT_MODEL = process.env.HF_SENTIMENT_MODEL || 'cardiffnlp/twitter-roberta-base-sentiment'; // Confirmed model
-const HF_INFERENCE_API_URL = `https://api-inference.huggingface.co/models/${HF_SENTIMENT_MODEL}`;
+const HF_SENTIMENT_MODEL = process.env.HF_SENTIMENT_MODEL || 'cardiffnlp/twitter-roberta-base-sentiment';
+const HF_EMOTION_MODEL = process.env.HF_EMOTION_MODEL || 'j-hartmann/emotion-english-distilroberta-base';
+const HF_TOXICITY_MODEL = process.env.HF_TOXICITY_MODEL || 'cardiffnlp/twitter-roberta-base-offensive';
 
-// Gemini AI Configuration for Topics and Summarization
+const HF_INFERENCE_API_BASE_URL = 'https://api-inference.huggingface.co/models/';
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`;
 
-// Function to map Hugging Face sentiment scores to custom sentiment labels
-const getSentimentLabel = (scores) => {
-  // Hugging Face sentiment models like cardiffnlp/twitter-roberta-base-sentiment
-  // typically return an array of objects with labels like LABEL_0, LABEL_1, LABEL_2
-  // LABEL_0: Negative, LABEL_1: Neutral, LABEL_2: Positive
-  let predictedLabel = 'Unknown'; // Default if no clear prediction
+const callHuggingFaceAPI = async(modelId, inputs) => {
+  if (!HF_API_TOKEN) {
+    console.error(`Hugging Face API token is missing for model: ${modelId}`);
+    throw new Error('Hugging Face API token missing.');
+  }
 
+  const response = await fetch(`${HF_INFERENCE_API_BASE_URL}${modelId}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${HF_API_TOKEN}`,
+    },
+    body: JSON.stringify({
+      inputs: inputs,
+      options: {
+        wait_for_model: true,
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error(`Hugging Face API Error for ${modelId}:`, response.status, errorText);
+    throw new Error(`HF API error (${response.status}): ${errorText}`);
+  }
+
+  return response.json();
+};
+
+const getSentimentLabel = (scores) => {
+  let predictedLabel = 'Unknown';
   let maxScore = -1;
   let finalLabel = '';
 
-  // Find the label with the highest score
   for (const item of scores) {
     if (item.score > maxScore) {
       maxScore = item.score;
@@ -30,7 +54,6 @@ const getSentimentLabel = (scores) => {
     }
   }
 
-  // Map the Hugging Face labels to our custom labels
   if (finalLabel === 'LABEL_0') {
     predictedLabel = 'Negative';
   } else if (finalLabel === 'LABEL_1') {
@@ -38,32 +61,55 @@ const getSentimentLabel = (scores) => {
   } else if (finalLabel === 'LABEL_2') {
     predictedLabel = 'Positive';
   }
-  //TODO
-  // Optional: Add a threshold check if maxScore is very low (e.g., < 0.5),
-  // implying the model is not confident, and you might want to call it 'Mixed' or 'Unclear'.
-  // For this model, scores are generally high for the predicted label.
 
   return predictedLabel;
 };
 
-// @desc    Analyze post content using Hugging Face (Sentiment) and Gemini (Topics/Summary)
+const getEmotionLabels = (scores, threshold = 0.4) => {
+  return scores.filter(emotion => emotion.score >= threshold).map(emotion => ({
+    emotion: emotion.label.toLowerCase(),
+    score: parseFloat(emotion.score.toFixed(2)),
+  }));
+};
+
+const getToxicityScores = (scores, threshold = 0.5) => {
+  const toxicLabels = {};
+  let isToxic = false;
+
+  const categories = scores[0] || scores;
+
+  if (!Array.isArray(categories)) {
+    console.warn('Toxicity model returned unexpected format for categories:', scores);
+    return { detected: false, details: { error: 'Unexpected response format for categories' } };
+  }
+
+  for (const item of categories) {
+    if (item.score >= threshold) {
+      const cleanLabel = item.label.toLowerCase().replace(/_/g, ' ');
+      toxicLabels[cleanLabel] = parseFloat(item.score.toFixed(2));
+
+      if (cleanLabel === 'offensive') {
+        isToxic = true;
+      }
+    }
+  }
+  return { detected: isToxic, details: toxicLabels };
+};
+
+// @desc    Analyze post content using multiple AI models
 // @route   POST /api/ai/analyze/:postId
-// @access  Private (requires authentication)
+// @access  Private
 const analyzePost = async(req, res) => {
   const { postId } = req.params;
 
-  // Initial checks for API keys
   if (!HF_API_TOKEN) {
-    console.error('Hugging Face API token is not set in environment variables.');
     return res.status(500).json({ message: 'AI service not configured: Hugging Face API token missing.' });
   }
   if (!GEMINI_API_KEY) {
-    console.error('Gemini API key is not set in environment variables.');
     return res.status(500).json({ message: 'AI service not configured: Gemini API key missing.' });
   }
 
   try {
-    // 1. Fetch the post from the database
     const post = await Post.findById(postId);
 
     if (!post) {
@@ -72,122 +118,144 @@ const analyzePost = async(req, res) => {
 
     const postContent = post.content;
 
-    // --- Part 1: Call Hugging Face for Sentiment Analysis ---
-    let sentimentResult = { sentiment: 'Unknown' };
-    try {
-      const hfPayload = {
-        inputs: postContent,
-        options: {
-          wait_for_model: true,
-        },
-      };
-
-      const hfResponse = await fetch(HF_INFERENCE_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${HF_API_TOKEN}`,
-        },
-        body: JSON.stringify(hfPayload),
-      });
-
-      if (!hfResponse.ok) {
-        const hfErrorText = await hfResponse.text();
-        console.error('Hugging Face API Error (Sentiment):', hfResponse.status, hfErrorText);
-        sentimentResult = { sentiment: 'Error - HF', details: hfErrorText };
-      } else {
-        const hfData = await hfResponse.json();
-        const sentimentScores = hfData[0];
-        if (sentimentScores && Array.isArray(sentimentScores)) {
-          sentimentResult = { sentiment: getSentimentLabel(sentimentScores) };
-        } else {
-          sentimentResult = { sentiment: 'Error - HF Format', details: hfData };
-        }
-      }
-    } catch (hfError) {
-      console.error('Hugging Face API call failed (Sentiment):', hfError);
-      sentimentResult = { sentiment: 'Error - HF Call', details: hfError.message };
-    }
-
-    // --- Part 2: Call Gemini AI for Topics and Summarization ---
+    let sentiment = 'Unknown';
+    let emotions = [];
+    let toxicity = { detected: false, details: {} };
     let topics = [];
     let summary = '';
+    let category = 'Uncategorized';
 
-    try {
-      const geminiPrompt = `Analyze the following social media post.
-      1. Extract 3-5 distinct, key topics/keywords mentioned in the post.
-      2. Provide a concise summary of the post (max 50 words).
+    const [
+      sentimentPromise,
+      emotionPromise,
+      toxicityPromise,
+      geminiPromise,
+    ] = await Promise.allSettled([
+      callHuggingFaceAPI(HF_SENTIMENT_MODEL, postContent),
+      callHuggingFaceAPI(HF_EMOTION_MODEL, postContent),
+      callHuggingFaceAPI(HF_TOXICITY_MODEL, postContent),
+      (async() => {
+        const geminiCategories = ['News', 'Sports', 'Technology', 'Entertainment', 'Politics', 'Art', 'Science', 'Education', 'Lifestyle', 'Travel', 'Food', 'Health', 'Personal Update', 'Opinion', 'Humor', 'Other'];
+        const geminiPrompt = `Analyze the following social media post.
+        1. Extract 3-5 distinct, key topics/keywords mentioned in the post.
+        2. Provide a concise summary of the post (max 50 words).
+        3. Classify the post into ONE of the following categories: ${geminiCategories.join(', ')}. If none fit well, use "Other".
 
-      Provide the output in JSON format like this:
-      {
-        "topics": ["topic1", "topic2", "topic3"],
-        "summary": "Concise summary of the post."
-      }
-
-      Post: "${postContent}"`;
-
-      const geminiPayload = {
-        contents: [{ role: 'user', parts: [{ text: geminiPrompt }] }],
-        generationConfig: {
-          responseMimeType: 'application/json',
-          responseSchema: {
-            type: 'OBJECT',
-            properties: {
-              'topics': {
-                'type': 'ARRAY',
-                'items': { 'type': 'STRING' },
-              },
-              'summary': { 'type': 'STRING' },
-            },
-            'required': ['topics', 'summary'],
-          },
-        },
-      };
-
-      const geminiResponse = await fetch(GEMINI_API_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(geminiPayload),
-      });
-
-      if (!geminiResponse.ok) {
-        const geminiErrorText = await geminiResponse.text();
-        console.error('Gemini API Error (Topics/Summary):', geminiResponse.status, geminiErrorText);
-        topics = ['Error getting topics'];
-        summary = 'Error summarizing post.';
-      } else {
-        const geminiResult = await geminiResponse.json();
-        if (geminiResult.candidates && geminiResult.candidates.length > 0 &&
-            geminiResult.candidates[0].content && geminiResult.candidates[0].content.parts &&
-            geminiResult.candidates[0].content.parts.length > 0) {
-          try {
-            const jsonString = geminiResult.candidates[0].content.parts[0].text;
-            const parsedGemini = JSON.parse(jsonString);
-            topics = parsedGemini.topics || [];
-            summary = parsedGemini.summary || 'Could not generate summary.';
-          } catch (parseError) {
-            console.error('Failed to parse Gemini JSON response:', parseError);
-            topics = ['Parsing Error'];
-            summary = 'Error parsing AI summary.';
-          }
-        } else {
-          topics = ['No Gemini Response'];
-          summary = 'No summary from AI.';
+        Provide the output in JSON format like this:
+        {
+          "topics": ["topic1", "topic2", "topic3"],
+          "summary": "Concise summary of the post.",
+          "category": "CategoryName"
         }
+
+        Post: "${postContent}"`;
+
+        const geminiPayload = {
+          contents: [{ role: 'user', parts: [{ text: geminiPrompt }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: 'OBJECT',
+              properties: {
+                'topics': {
+                  'type': 'ARRAY',
+                  'items': { 'type': 'STRING' },
+                },
+                'summary': { 'type': 'STRING' },
+                'category': { 'type': 'STRING', 'enum': geminiCategories.concat('Other') },
+              },
+              'required': ['topics', 'summary', 'category'],
+            },
+          },
+        };
+
+        const geminiResponse = await fetch(GEMINI_API_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(geminiPayload),
+        });
+
+        if (!geminiResponse.ok) {
+          const geminiErrorText = await geminiResponse.text();
+          console.error('Gemini API Error (Topics/Summary/Category):', geminiResponse.status, geminiErrorText);
+          throw new Error(`Gemini API error (${geminiResponse.status}): ${geminiErrorText}`);
+        } else {
+          const geminiResult = await geminiResponse.json();
+          if (geminiResult.candidates && geminiResult.candidates.length > 0 &&
+              geminiResult.candidates[0].content && geminiResult.candidates[0].content.parts &&
+              geminiResult.candidates[0].content.parts.length > 0) {
+            try {
+              const jsonString = geminiResult.candidates[0].content.parts[0].text;
+              return JSON.parse(jsonString);
+            } catch (parseError) {
+              console.error('Failed to parse Gemini JSON response:', parseError);
+              throw new Error('Error parsing Gemini JSON response.');
+            }
+          } else {
+            throw new Error('No valid Gemini response found.');
+          }
+        }
+      })(),
+    ]);
+
+    if (sentimentPromise.status === 'fulfilled') {
+      console.log('Raw HF Sentiment Output:', JSON.stringify(sentimentPromise.value));
+      if (Array.isArray(sentimentPromise.value) && Array.isArray(sentimentPromise.value[0])) {
+        sentiment = getSentimentLabel(sentimentPromise.value[0]);
+      } else {
+        console.warn('Unexpected sentiment output format. Using \'Unknown\'.', sentimentPromise.value);
+        sentiment = 'Unknown';
       }
-    } catch (geminiError) {
-      console.error('Gemini API call failed (Topics/Summary):', geminiError);
-      topics = ['API Call Failed'];
-      summary = 'Gemini API call failed.';
+    } else {
+      console.error('Sentiment Analysis failed:', sentimentPromise.reason);
+      sentiment = 'Error';
     }
 
-    // 3. Combine results and respond
+    if (emotionPromise.status === 'fulfilled') {
+      console.log('Raw HF Emotion Output:', JSON.stringify(emotionPromise.value));
+      if (Array.isArray(emotionPromise.value) && Array.isArray(emotionPromise.value[0])) {
+        emotions = getEmotionLabels(emotionPromise.value[0]);
+      } else {
+        console.warn('Unexpected emotion output format. Using empty array.', emotionPromise.value);
+        emotions = [];
+      }
+    } else {
+      console.error('Emotion Detection failed:', emotionPromise.reason);
+      emotions = [{ emotion: 'Error', score: 'N/A' }];
+    }
+
+    if (toxicityPromise.status === 'fulfilled') {
+      console.log('Raw HF Toxicity Output:', JSON.stringify(toxicityPromise.value));
+      toxicity = getToxicityScores(toxicityPromise.value);
+    } else {
+      console.error('Toxicity detection failed:', toxicityPromise.reason);
+      toxicity = { detected: false, details: { error: 'N/A' } };
+    }
+
+    if (geminiPromise.status === 'fulfilled') {
+      topics = geminiPromise.value.topics || [];
+      summary = geminiPromise.value.summary || 'AI summary unavailable.';
+      category = geminiPromise.value.category || 'Uncategorized';
+    } else {
+      console.error('Gemini analysis failed:', geminiPromise.reason);
+      topics = ['AI Error'];
+      summary = 'AI summary unavailable.';
+      category = 'Error';
+    }
+
+    if (toxicity.detected) {
+      sentiment = 'Mixed';
+    }
+
     const aiAnalysis = {
-      sentiment: sentimentResult.sentiment,
+      sentiment: sentiment,
+      emotions: emotions,
+      toxicity: toxicity,
       topics: topics,
       summary: summary,
+      category: category,
     };
 
     res.json({
