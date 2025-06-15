@@ -1,25 +1,31 @@
+// routes/postRoutes.js - Post-related routes
 import express from 'express';
 import {
   createPost,
-  getPosts,
+  getAllPosts, // Corrected from getPosts
   getPostById,
   deletePost,
   likePost,
   addComment,
-  getUserFeed,
+  getFeedPosts,
 } from '../controllers/postController.js';
 import { protect } from '../middlewares/auth.js';
 
 const router = express.Router();
 
-// All post routes require authentication (protect middleware)
-router.route('/').post(protect, createPost).get(protect, getPosts);
-router.route('/feed').get(protect, getUserFeed); // Get user's personalized feed
-router
-  .route('/:id')
-  .get(protect, getPostById)
-  .delete(protect, deletePost);
-router.route('/:id/like').put(protect, likePost); // Toggle like on a post
-router.route('/:id/comment').post(protect, addComment); // Add a comment to a post
+// Route to create a new post and get all posts
+router.route('/').post(protect, createPost).get(protect, getAllPosts);
+
+// Route for personalized user feed
+router.get('/feed', protect, getFeedPosts);
+
+// Routes for single post operations
+router.route('/:id').get(protect, getPostById).delete(protect, deletePost);
+
+// Route to like/unlike a post
+router.put('/:id/like', protect, likePost);
+
+// Route to add a comment to a post
+router.post('/:id/comment', protect, addComment);
 
 export default router;
