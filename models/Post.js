@@ -38,6 +38,11 @@ const aiAnalysisSchema = mongoose.Schema(
     topics: [{ type: String }],
     summary: { type: String },
     category: { type: String },
+    factCheck: {
+      type: String,
+      enum: ['support', 'neutral', 'oppose', 'Unknown'], // Defines allowed values
+      default: 'Unknown',
+    },
   },
   {
     _id: false, // Do not create an _id for this subdocument

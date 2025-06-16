@@ -6,6 +6,7 @@ import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import postRoutes from './routes/postRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js'; // NEW: Import notification routes
 
 dotenv.config();
 
@@ -22,15 +23,17 @@ app.use(express.json()); // Body parser for JSON requests
 app.use('/api/auth', authRoutes); // Authentication routes (signup, login)
 app.use('/api/posts', postRoutes); // Post-related routes (create, read, update, delete, like, comment)
 app.use('/api/ai', aiRoutes);
+app.use('/api/notifications', notificationRoutes); // NEW: Use notification routes
+
 // Basic route for testing server
 app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).send('Something broke!');
-});
+// app.use((err, req, res, next) => {
+//   console.error(err.stack);
+//   res.status(500).send('Something broke!');
+// });
 
 const PORT = process.env.PORT || 5000;
 
