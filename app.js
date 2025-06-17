@@ -2,11 +2,13 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import cors from 'cors';
+import cron from 'node-cron'; // NEW: Import node-cron
 import connectDB from './config/db.js';
 import authRoutes from './routes/authRoutes.js';
 import postRoutes from './routes/postRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js'; // NEW: Import notification routes
+import { fetchNewsAndPost } from './controllers/botController.js'; // NEW: Import bot controller function
 
 dotenv.config();
 
@@ -33,6 +35,21 @@ app.get('/health', (req, res) => {
 // Basic route for testing server
 app.get('/', (req, res) => {
   res.send('API is running...');
+});
+
+cron.schedule('*/15 * * * *', () => {
+  console.log('Running scheduled bot news posting...');
+  fetchNewsAndPost();
+}, {
+  scheduled: true,
+  timezone: 'America/Chicago', // Or your desired timezone (e.g., 'UTC', 'America/New_York')
+});
+
+// Optional: A route to manually trigger the bot for testing
+app.post('/api/bots/trigger-news-post', (req, res) => {
+  console.log('Manual trigger for bot news posting received.');
+  fetchNewsAndPost();
+  res.status(200).json({ message: 'Bot news posting triggered manually.' });
 });
 
 // app.use((err, req, res, next) => {

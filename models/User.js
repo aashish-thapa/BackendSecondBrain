@@ -35,6 +35,14 @@ const userSchema = mongoose.Schema(
         ref: 'User',
       },
     ],
+    isAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    isBot: {
+      type: Boolean,
+      default: false, // NEW FIELD: Indicate if the user is a bot
+    },
     userPreferences: { // NEW FIELD: Store user's aggregated preferences
       likedCategories: {
         type: Map, // Key: category name (string), Value: count (Number)
