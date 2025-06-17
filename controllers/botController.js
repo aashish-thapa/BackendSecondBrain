@@ -62,7 +62,6 @@ const botConfigurations = [
     timezone: 'America/Chicago',
     titlePrefix: '☁️ Weather Alert:',
     postLimit: 1,
-    fallbackContent: 'No specific weather news right now, but always check your local forecast! Stay safe out there.',
     type: 'news', // NEW: Added type
   },
   {
