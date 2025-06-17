@@ -78,15 +78,15 @@ const botConfigurations = [
   },
   {
     username: 'Entertainment', // NEW: Motivation Bot Configuration
-    query: null, // Not used for this API
-    category: null, // Not used for this API
-    language: null, // Not used for this API
-    country: null, // Not used for this API
-    timezone: null, // Not used for this API
     titlePrefix: '✨ Entertainment News:',
-    postLimit: 1, // Only one quote per run
-    type: 'quote', // NEW: Type 'quote' for this bot
-  },
+    query: 'entertainment',
+    category: null,
+    language: 'en',
+    country: 'us',
+    timezone: 'America/Chicago',
+    postLimit: 1,
+    type: 'news',
+  }
 ];
 
 /**
