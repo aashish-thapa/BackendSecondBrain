@@ -25,6 +25,11 @@ app.use('/api/posts', postRoutes); // Post-related routes (create, read, update,
 app.use('/api/ai', aiRoutes);
 app.use('/api/notifications', notificationRoutes); // NEW: Use notification routes
 
+// NEW: Health Check Endpoint for Ping Services
+app.get('/health', (req, res) => {
+  res.status(200).send('Backend is alive!');
+});
+
 // Basic route for testing server
 app.get('/', (req, res) => {
   res.send('API is running...');
