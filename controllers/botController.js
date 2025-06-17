@@ -86,7 +86,7 @@ const botConfigurations = [
     timezone: 'America/Chicago',
     postLimit: 1,
     type: 'news',
-  }
+  },
 ];
 
 /**
