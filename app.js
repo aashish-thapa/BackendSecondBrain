@@ -37,7 +37,7 @@ app.get('/', (req, res) => {
   res.send('API is running...');
 });
 
-cron.schedule('*/15 * * * *', () => {
+cron.schedule('*/30 * * * *', () => {
   console.log('Running scheduled bot news posting...');
   fetchNewsAndPost();
 }, {
