@@ -15,10 +15,19 @@ cloudinary.config({
 
 const NEWSDATA_API_KEY = process.env.NEWSDATA_API_KEY;
 const NEWSDATA_API_BASE_URL = 'https://newsdata.io/api/1/latest';
+const ZENQUOTES_API_BASE_URL = 'https://zenquotes.io/api/quotes';
 
-// NEW: ZenQuotes API Base URL
-const ZENQUOTES_API_BASE_URL = 'https://zenquotes.io/api/quotes'; // For random quotes
-
+/**
+ * Configuration for different bot users.
+ * - query: Main search keyword for Newsdata.io.
+ * - category: Newsdata.io category (e.g., 'sports', 'technology', 'entertainment').
+ * - language: Language of articles (e.g., 'en').
+ * - country: Specific country code (e.g., 'us', 'in').
+ * - timezone: Timezone for 'pubDateTZ' parameter (e.g., 'America/Chicago').
+ * - titlePrefix: A prefix for the post title.
+ * - postLimit: The number of articles/quotes this bot will attempt to post per run (Newsdata.io free tier max size is 10).
+ * - type: 'news' for Newsdata.io, 'quote' for ZenQuotes.io.
+ */
 const botConfigurations = [
   {
     username: 'BreakingNewsBot',
@@ -28,8 +37,8 @@ const botConfigurations = [
     country: null,
     timezone: null,
     titlePrefix: '🚨 BREAKING NEWS:',
-    postLimit: 2,
-    type: 'news', // NEW: Added type for bot to differentiate content source
+    postLimit: 3, // Fetch and post up to 3 articles per run
+    type: 'news',
   },
   {
     username: 'ExploreSports',
@@ -39,8 +48,8 @@ const botConfigurations = [
     country: 'us',
     timezone: 'America/New_York',
     titlePrefix: '⚽ Sports Update:',
-    postLimit: 1,
-    type: 'news', // NEW: Added type
+    postLimit: 3, // Fetch and post up to 3 articles per run
+    type: 'news',
   },
   {
     username: 'TechTrendsBot',
@@ -50,8 +59,8 @@ const botConfigurations = [
     country: 'us',
     timezone: 'America/Los_Angeles',
     titlePrefix: '💻 Tech Trends:',
-    postLimit: 1,
-    type: 'news', // NEW: Added type
+    postLimit: 3, // Fetch and post up to 3 articles per run
+    type: 'news',
   },
   {
     username: 'WeatherAlerts',
@@ -61,39 +70,34 @@ const botConfigurations = [
     country: 'us',
     timezone: 'America/Chicago',
     titlePrefix: '☁️ Weather Alert:',
-    postLimit: 1,
+    postLimit: 3, // Fetch and post up to 3 articles per run
     fallbackContent: 'No specific weather news right now, but always check your local forecast! Stay safe out there.',
-    type: 'news', // NEW: Added type
+    type: 'news',
   },
   {
-    username: 'Motivation', // NEW: Motivation Bot Configuration
-    query: null, // Not used for this API
-    category: null, // Not used for this API
-    language: null, // Not used for this API
-    country: null, // Not used for this API
-    timezone: null, // Not used for this API
+    username: 'Entertainment', // NEW: Entertainment Bot
+    query: null,
+    category: 'entertainment',
+    language: 'en',
+    country: 'us',
+    timezone: 'America/New_York',
+    titlePrefix: '🎬 Entertainment Buzz:',
+    postLimit: 3, // Fetch and post up to 3 articles per run
+    type: 'news',
+  },
+  {
+    username: 'Motivation',
+    query: null,
+    category: null,
+    language: null,
+    country: null,
+    timezone: null,
     titlePrefix: '✨ Daily Motivation:',
-    postLimit: 1, // Only one quote per run
-    type: 'quote', // NEW: Type 'quote' for this bot
-  },
-  {
-    username: 'Entertainment', // NEW: Motivation Bot Configuration
-    query: null, // Not used for this API
-    category: null, // Not used for this API
-    language: null, // Not used for this API
-    country: null, // Not used for this API
-    timezone: null, // Not used for this API
-    titlePrefix: '✨ Entertainment News:',
-    postLimit: 1, // Only one quote per run
-    type: 'quote', // NEW: Type 'quote' for this bot
+    postLimit: 1, // Keep as 1 for quotes
+    type: 'quote',
   },
 ];
 
-/**
- * Fetches articles from Newsdata.io's /latest endpoint.
- * @param {object} params - Object containing query, category, language, country, timezone, pageSize.
- * @returns {Array} An array of articles or an empty array on error/no results.
- */
 const fetchNews = async({ query, category, language = 'en', country = null, timezone = null, pageSize = 5 }) => {
   if (!NEWSDATA_API_KEY) {
     console.error('ERROR: NEWSDATA_API_KEY is not set in .env. Cannot fetch news from Newsdata.io.');
@@ -103,7 +107,7 @@ const fetchNews = async({ query, category, language = 'en', country = null, time
   const url = new URL(NEWSDATA_API_BASE_URL);
   url.searchParams.append('apikey', NEWSDATA_API_KEY);
   url.searchParams.append('language', language);
-  url.searchParams.append('size', pageSize);
+  url.searchParams.append('size', pageSize); // Newsdata.io uses 'size' instead of 'pageSize'
 
   if (query) {
     url.searchParams.append('q', query);
@@ -134,15 +138,10 @@ const fetchNews = async({ query, category, language = 'en', country = null, time
   }
 };
 
-/**
- * NEW: Fetches a random quote from ZenQuotes.io.
- * @returns {object|null} A quote object { q: "quote", a: "author" } or null on error.
- */
 const fetchQuote = async() => {
   try {
-    const response = await fetch(ZENQUOTES_API_BASE_URL); // Using /api/quotes for a batch of random quotes
+    const response = await fetch(ZENQUOTES_API_BASE_URL);
     const data = await response.json();
-    // ZenQuotes returns an array of quotes. Pick a random one.
     if (Array.isArray(data) && data.length > 0) {
       return data[Math.floor(Math.random() * data.length)];
     }
@@ -154,14 +153,6 @@ const fetchQuote = async() => {
   }
 };
 
-/**
- * Creates a new post for a bot user directly in the database.
- * This bypasses Express middleware (auth, multer) as it's a server-side action.
- * @param {string} userId - The MongoDB ID of the bot user.
- * @param {string} content - The text content of the post.
- * @param {string} [imageUrl=null] - The URL of an image for the post.
- * @returns {object|null} The created post object or null on failure.
- */
 const createBotPost = async(userId, content, imageUrl = null) => {
   try {
     if (!content || content.trim().length < 10) {
@@ -193,7 +184,8 @@ const createBotPost = async(userId, content, imageUrl = null) => {
   }
 };
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+// Removed the 'delay' function as per user request to post frequently
+// const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 const fetchNewsAndPost = async() => {
   console.log('\n--- Running fetchNewsAndPost cron job (Newsdata.io /latest & ZenQuotes.io) ---');
@@ -213,10 +205,9 @@ const fetchNewsAndPost = async() => {
       continue;
     }
 
-    // Introduce a random delay before processing each bot
-    const randomDelayMs = Math.floor(Math.random() * (180000 - 10000 + 1)) + 10000;
-    console.log(`Delaying processing for ${botConfig.username} by ${Math.round(randomDelayMs / 1000)} seconds.`);
-    await delay(randomDelayMs);
+    // Removed random delay here to allow frequent posting
+    // console.log(`Delaying processing for ${botConfig.username} by ${Math.round(randomDelayMs / 1000)} seconds.`);
+    // await delay(randomDelayMs);
 
     console.log(`Processing content for bot: ${botConfig.username} (Type: ${botConfig.type})`);
     let postContent = '';
@@ -254,12 +245,12 @@ const fetchNewsAndPost = async() => {
       } else {
         console.log(`No suitable news articles or fallback content found for ${botConfig.username}. Skipping post for this run.`);
       }
-    } else if (botConfig.type === 'quote') { // NEW: Handle 'quote' type bot
+    } else if (botConfig.type === 'quote') {
       const quote = await fetchQuote();
       if (quote && quote.q && quote.a) {
         postContent = `**${botConfig.titlePrefix}** "${quote.q}"\n\n` +
                       `— ${quote.a}`;
-        imageUrl = null; // Quotes typically don't have images
+        imageUrl = null;
         const newBotPost = await createBotPost(botUser._id, postContent, imageUrl);
         if (newBotPost) {
           await performAIAnalysisOnPost(newBotPost._id);
